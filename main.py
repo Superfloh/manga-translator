@@ -47,6 +47,7 @@ async def do_convert(files: list[str], translator: int, translator_args: str, oc
     converter = FullConversion(
         translator=get_translators()[translator](**json_to_args(translator_args)),
         ocr=get_ocr()[ocr](**json_to_args(ocr_args)),drawer=get_drawers()[drawer](**json_to_args(drawer_args)),
+        translate_free_text=True,
     )
     filenames = files
     batches = math.ceil(len(filenames) / 4)
@@ -136,7 +137,15 @@ def main():
         required=False,
     )
 
+
     args = parser.parse_args()
+    args.files = ["./images/testing/1_ch.jpg"]
+    args.translator_args = "auth_token='1a147b24-6368-345d-287d-9a0d1adc6570:fx'"
+    args.ocr = 4 # NoOcr, JapaneseOcr, EasyOcr, TesseractOcr, Google vision
+    # args.ocr_args = "language='jpn_vert'"
+    args.translator = 2 #  DebugTranslator, HuggingFace, DeepLTranslator, GoogleTranslateTranslator, OpenAiTranslator, GeminiTranslator
+    args.drawer = 0 # HorizontalDrawer, VerticalDrawer
+
 
     if args.files is None:
         parser.print_help()

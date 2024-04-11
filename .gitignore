@@ -32,3 +32,6 @@ exa/*
 local/*
 trans-test/*
 *.env
+
+*.jpg
+*.png

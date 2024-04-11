@@ -147,6 +147,9 @@ class FullConversion:
 
         print(f"Inpainting => {time.time() - start} seconds")
 
+        cv2.imwrite("clean.jpg", frame_clean)
+        cv2.imwrite("frame.jpg", frame)
+
         return frame, frame_clean, text_mask, detect_result
 
     async def process_frame(self, detect_result, seg_result, input_frame):
@@ -344,6 +347,9 @@ class FullConversion:
 
                 translation_results = await self.translator(ocr_results)
 
+                for i in range(0, len(ocr_results)):
+                    print("text: " + ocr_results[i].text + ", translation: " + translation_results[i].text)
+
                 to_draw = []
                 for bbox,translation,color in zip(bboxes,translation_results,draw_colors):
 
@@ -359,6 +365,8 @@ class FullConversion:
                 start = time.time()
 
                 drawn_frames = await self.drawer(to_draw)
+
+                cv2.imwrite("frame2.jpg", frame)
 
 
                 for bbox, drawn_frame in zip(bboxes,drawn_frames):

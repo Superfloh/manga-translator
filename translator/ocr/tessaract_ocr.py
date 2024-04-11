@@ -27,6 +27,9 @@ class TesseractOcr(Ocr):
 
     async def do_ocr(self, batch: list[numpy.ndarray]):
 
+        for x in batch:
+            print("text" + self.tesseract.image_to_string(x, lang=self.language))
+
         return [OcrResult(
             text=self.tesseract.image_to_string(x, lang=self.language),
             language=simplify_lang_code(self.language),

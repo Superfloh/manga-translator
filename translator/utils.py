@@ -594,7 +594,7 @@ def try_merge_hyphenated(text: list[str], max_chars: int):
 
     return final
 
-
+# splits text in new lines when needed
 def wrap_text(text: str, max_chars: int, hyphenator: Union[Hyphenator, None]):
     total = deque(list(filter(lambda a: len(a.strip()) > 0, text.split(" "))))
     current_word = total.popleft()
@@ -669,6 +669,7 @@ def get_average_font_size(font: ImageFont, text="some text here"):
     return widths[1] if len(widths) > 1 else widths[0], h
 
 
+# iterates to find a fitting font size
 def get_best_font_size(
     text: str,
     wh: tuple[int, int],
