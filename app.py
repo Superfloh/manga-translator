@@ -90,11 +90,13 @@ class Window(QMainWindow, Ui_MainWindow):
         self.load_images_button.clicked.connect(self.load_images)
 
         # original image container
-        self.original_image_pixmap = QPixmap(643, 910)
+        self.original_image_pixmap = QPixmap(640, 910)
+        self.original_image_pixmap.fill(Qt.black)
         self.original_image_container.setPixmap(self.original_image_pixmap)
 
         # translated image container
-        self.translated_image_pixmap = QPixmap(643, 910)
+        self.translated_image_pixmap = QPixmap(640, 910)
+        self.translated_image_pixmap.fill(Qt.black)
         self.translated_image_container.setPixmap(self.translated_image_pixmap)
 
         # self.centralwidget.mouseMoveEvent = self.mouse_moved
@@ -103,6 +105,10 @@ class Window(QMainWindow, Ui_MainWindow):
         # self.translated_image_container.paintEvent = self.paintEvent
 
         self.imageDrawer = ImageDrawer(self)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Delete:
+            self.imageDrawer.delete_selected_rect()
 
 
 def custom_exception_handler(loop, context):

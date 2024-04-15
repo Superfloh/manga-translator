@@ -27,7 +27,7 @@ class ImageDrawer:
         self.editing_rect = None
         self.editing_rect_initial_pos = None
         self.editing_rect_offset = [0, 0]
-        self.selected_rect_index = 0
+        self.selected_rect_index = -1
 
         # wheres the mouse
         self.mouse_in_translated_image = False
@@ -82,43 +82,16 @@ class ImageDrawer:
             self.update_image_containers()
         return
 
+    def delete_selected_rect(self):
+        if len(self.image_data) > self.loaded_image_index and \
+                len(self.image_data[self.loaded_image_index].text_areas_resized) >= self.selected_rect_index >= 0:
+            del self.image_data[self.loaded_image_index].text_areas_resized[self.selected_rect_index]
+            self.selected_rect_index = -1
+            self.draw()
+
     def draw(self):
         clear_pixmap(self.window.original_image_pixmap)
         self.draw_original_image_data()
-
-    def draw_images(self):
-        if self.current_original_image:
-            self.window.original_image_pixmap = get_resized_image(
-                self.current_original_image,
-            )
-        else:
-            self.window.original_image_pixmap = QPixmap(640, 910)
-            self.window.original_image_pixmap.fill(Qt.black)
-
-    def draw_rects(self):
-        painter_instance = QtGui.QPainter(self.window.original_image_pixmap)
-        painter_instance.setRenderHint(QPainter.Antialiasing)
-        pen_rect = QtGui.QPen(self.rect_color)
-        pen_rect.setWidth(self.rect_border)
-
-        pen_selected_rect = QtGui.QPen(self.selected_rect_color)
-        pen_selected_rect.setWidth(self.rect_border)
-
-        # top left (x1, y2) and (width, height)
-        i = 0
-        for x1, y1, w, h in self.rects:
-            if i != self.selected_rect_index or self.editing_rect:
-                painter_instance.setPen(pen_rect)
-                painter_instance.drawRect(x1, y1, w, h)
-            else:
-                painter_instance.setPen(pen_selected_rect)
-                painter_instance.drawRect(x1, y1, w, h)
-            i += 1
-
-        if self.editing_rect:
-            painter_instance.setPen(pen_selected_rect)
-            painter_instance.drawRect(self.editing_rect[0], self.editing_rect[1], self.editing_rect[2],
-                                      self.editing_rect[3])
 
     def update_image_containers(self):
         self.window.original_image_container.setPixmap(self.window.original_image_pixmap)
