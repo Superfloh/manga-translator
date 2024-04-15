@@ -103,13 +103,38 @@
        </layout>
       </item>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout" stretch="1,10">
+       <layout class="QVBoxLayout" name="verticalLayout" stretch="1,1,10">
         <item>
          <widget class="QLabel" name="translated_image_text">
           <property name="text">
            <string>Result</string>
           </property>
          </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QPushButton" name="show_result_button">
+            <property name="text">
+             <string>Show Result</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="show_clean_button">
+            <property name="text">
+             <string>Show Clean</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="show_text_mask_button">
+            <property name="text">
+             <string>Show Text Mask</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
          <widget class="QLabel" name="translated_image_container">

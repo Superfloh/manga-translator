@@ -1,69 +1,62 @@
+import threading
 import time
+import traceback
 
 import cv2
 import numpy as np
+import torch
 from PyQt5.QtGui import QPixmap
+from typing import Union
 
+from helpers.imageInfo import ImageInfo
+from helpers.segmentation_copy import process_frame_v2
 from translator.cleaners.deepfillv2 import DeepFillV2Cleaner
-from translator.core.plugin import Cleaner
+from translator.color_detect.models import get_color_detection_model
+from translator.color_detect.utils import apply_transforms
+from translator.core.plugin import Cleaner, Ocr, Translator, Drawer, Drawable
+from translator.drawers.horizontal import HorizontalDrawer
+from translator.ocr.huggingface_ja import JapaneseOcr
+from translator.pipelines import FullConversion
+from translator.translators.deepl import DeepLTranslator
+from translator.utils import has_white, mask_text_and_make_bubble_mask, get_bounds_for_text, TranslatorGlobals, \
+    get_model_path, apply_mask
 
 
 class Segmentation:
 
-    def __init__(self, translated_image_container, cleaner: Cleaner = DeepFillV2Cleaner()):
-        self.cleaner = cleaner
-        self.translated_image_container = translated_image_container
+    def __init__(self):
+        self.translator = DeepLTranslator()
+        self.ocr = JapaneseOcr()
+        self.segmentor = FullConversion(
+            translator=self.translator,
+            ocr=self.ocr,
+        )
 
-    def filter_results(self, results, min_confidence=0.1):
-        bounding_boxes = np.array(results.boxes.xyxy.cpu(), dtype="int")
-        classes = np.array(results.boxes.cls.cpu(), dtype="int")
-        confidence = np.array(results.boxes.conf.cpu(), dtype="float")
-        raw_results: list[tuple[tuple[int, int, int, int], str, float]] = []
+    # - process_m1_results
+    # 	- takes model results and returns clean frame, text mast, filtered detect result
+    #
+    # - detect_result
+    # 	- bbox, cls, conf
+    # 	- bbox contains all text boxes x1, y1, x2, y2
+    # 	- cls = "text_bubble", "free_text"
+    # 	- conf = confidence, 0-1
+    async def pre_process_frame(self, image_path):
+        image = cv2.imread(image_path)
+        detect_result = self.segmentor.detection_model([image], device=self.segmentor.yolo_device, verbose=False),
+        seg_result = self.segmentor.segmentation_model([image], device=self.segmentor.yolo_device, verbose=False),
 
-        for box, obj_class, conf in zip(bounding_boxes, classes, confidence):
-            if conf >= min_confidence:
-                raw_results.append((box, results.names[obj_class], conf))
+        frame, frame_clean, text_mask, detect_result = await self.segmentor.process_ml_results(
+            detect_result=detect_result[0][0],
+            seg_result=seg_result[0][0],
+            frame=image
+        )
+        # detect_result: list of tuple3 (rect, 'text_bubble', confidence)
 
-        raw_results.sort(key=lambda a: 1 - a[2])
+        return await self.process_frame(frame, frame_clean, text_mask, detect_result, image_path)
 
-        results = raw_results
-        return results
-
-    async def process_ml_results(self, detect_result, seg_result, frame):
-        print("process")
-        text_mask = np.zeros_like(frame, dtype=frame.dtype)
-
-        detect_result = detect_result[0][0]
-        seg_result = seg_result[0][0]
-
-        if seg_result.masks is not None:  # Fill in segmentation results
-            for seg in list(map(lambda a: a.astype("int"), seg_result.masks.xy)):
-                cv2.fillPoly(text_mask, [seg], (255, 255, 255))
-
-        detect_result = self.filter_results(detect_result)
-        print("filter done")
-
-        for bbox, cls, conf in detect_result:  # fill in text free results
-            if cls == "text_free":
-                (x1, y1, x2, y2) = bbox
-                text_mask = cv2.rectangle(
-                    text_mask, (x1, y1), (x2, y2), (255, 255, 255), -1
-                )
-
-        start = time.time()
-
-        print("starting cleaner")
-        frame_clean, text_mask = await self.cleaner(
-            frame=frame, mask=text_mask, detection_results=detect_result
-        )  # segmentation_results.boxes.xyxy.cpu().numpy()
-
-        print(f"Inpainting => {time.time() - start} seconds")
-
-        cv2.imwrite("clean.jpg", frame_clean)
-        cv2.imwrite("frame.jpg", frame)
-
-        pixmap = QPixmap('./clean.jpg')
-        pixmap = pixmap.scaledToWidth(650)
-        self.translated_image_container.setPixmap(pixmap)
-
-        return frame, frame_clean, text_mask, detect_result
+    # to_translate:
+    # - tuple: rect, img
+    # - contains the coordinates of a rect and the contained extracted speech-bubble
+    async def process_frame(self, input_frame, frame_clean, text_mask, detect_result, image_path):
+        cleaned_frame, detect_result, to_translate = await process_frame_v2(input_frame, frame_clean, text_mask, detect_result)
+        return ImageInfo(image_path, cleaned_frame, text_mask, detect_result, to_translate)

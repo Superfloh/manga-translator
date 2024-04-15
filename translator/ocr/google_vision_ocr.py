@@ -12,7 +12,7 @@ from translator.core.plugin import (
 class GoogleVisionOcr(Ocr):
     """Supports all the languages listed"""
 
-    default_language = "zh"
+    default_language = "ja"
 
     def __init__(self, language=default_language) -> None:
         super().__init__()

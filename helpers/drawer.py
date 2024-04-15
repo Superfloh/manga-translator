@@ -1,7 +1,11 @@
+from typing import List
+
 import cv2
 from PyQt5 import QtGui
 from PyQt5.QtCore import QRect, Qt
 from PyQt5.QtGui import QPixmap, QPainter, QColor
+
+from helpers.imageInfo import ImageInfo, ImageTextInfo
 
 
 class ImageDrawer:
@@ -11,8 +15,9 @@ class ImageDrawer:
         self.window = window
 
         # Images
+        self.image_data: List[ImageInfo] = []
         self.loaded_images = []
-        self.loaded_image_index = 0
+        self.loaded_image_index = 0     # index of the currently shown image in the UI
         self.current_original_image = ""
 
         # rect stuff
@@ -43,13 +48,43 @@ class ImageDrawer:
 
         self.window.centralwidget.mouseReleaseEvent = self.mouse_released
 
-        self.draw()
+    def draw_original_image_data(self):
+
+        if len(self.image_data) > self.loaded_image_index:
+
+            # draw the image
+            image_info = self.image_data[self.loaded_image_index]
+            self.window.original_image_pixmap = QPixmap(image_info.original_image_path).scaledToWidth(640)
+
+            # draw the rects
+            painter_instance = QtGui.QPainter(self.window.original_image_pixmap)
+            painter_instance.setRenderHint(QPainter.Antialiasing)
+
+            # pens
+            pen_rect = QtGui.QPen(self.rect_color)
+            pen_rect.setWidth(self.rect_border)
+            pen_selected_rect = QtGui.QPen(self.selected_rect_color)
+            pen_selected_rect.setWidth(self.rect_border)
+
+            painter_instance.setPen(pen_rect)
+            for i in range(0, len(image_info.text_areas_resized)):
+                x1, y1, x2, y2 = image_info.text_areas_resized[i].rect
+                if i == self.selected_rect_index:
+                    painter_instance.setPen(pen_selected_rect)
+                else:
+                    painter_instance.setPen(pen_rect)
+                painter_instance.drawRect(x1, y1, x2, y2)
+            # editing rect
+            if self.editing_rect:
+                painter_instance.drawRect(self.editing_rect[0], self.editing_rect[1], self.editing_rect[2],
+                                          self.editing_rect[3])
+            painter_instance.end()
+            self.update_image_containers()
+        return
 
     def draw(self):
         clear_pixmap(self.window.original_image_pixmap)
-        self.draw_images()
-        self.draw_rects()
-        self.update_image_containers()
+        self.draw_original_image_data()
 
     def draw_images(self):
         if self.current_original_image:
@@ -90,72 +125,85 @@ class ImageDrawer:
         self.window.translated_image_container.setPixmap(self.window.translated_image_pixmap)
 
     def place_or_drag_rect(self, event: QtGui.QMouseEvent) -> None:
-        x2 = event.pos().x()
-        y2 = event.pos().y()
-        print("click, x=" + str(x2) + ", y=" + str(y2))
-        fits = True
-        rect_index = 0
-        for i in range(0, len(self.rects)):
-            print(str(self.rects[i]) + " in: " + str(pointInRect((x2, y2), self.rects[i])))
-            if pointInRect((x2, y2), self.rects[i]):
-                fits = False
-                rect_index = i
 
-        if fits:
-            self.drawing_rect = True
-            self.editing_rect = (x2, y2, 0, 0)
-        else:
-            print("starting drag")
-            self.moving_rect = True
-            self.editing_rect = self.rects[rect_index]
-            self.editing_rect_initial_pos = self.rects[rect_index]
-            self.editing_rect_offset = [self.rects[rect_index][0] - x2, self.rects[rect_index][1] - y2]
-            del self.rects[rect_index]
+        if len(self.image_data) > self.loaded_image_index:
+
+            x2 = event.pos().x()
+            y2 = event.pos().y()
+            print("click, x=" + str(x2) + ", y=" + str(y2))
+            fits = True
+            rect_index = 0
+            for i in range(0, len(self.image_data[self.loaded_image_index].text_areas_resized)):
+                rect = self.image_data[self.loaded_image_index].text_areas_resized[i].rect
+                # print(str(rect) + " in: " + str(pointInRect((x2, y2), rect)))
+                if pointInRect((x2, y2), rect):
+                    fits = False
+                    rect_index = i
+
+            if fits:
+                print("starting editing")
+                self.drawing_rect = True
+                self.editing_rect = (x2, y2, 0, 0)
+            else:
+                print("starting drag")
+                self.moving_rect = True
+                self.editing_rect = self.image_data[self.loaded_image_index].text_areas_resized[rect_index].rect
+                self.editing_rect_initial_pos = self.editing_rect
+                self.editing_rect_offset = [
+                    self.image_data[self.loaded_image_index].text_areas_resized[rect_index].rect[0] - x2,
+                    self.image_data[self.loaded_image_index].text_areas_resized[rect_index].rect[1] - y2
+                ]
+                del self.image_data[self.loaded_image_index].text_areas_resized[rect_index]
+
+    def mouse_moved(self, event):
+        # print("mouse moved")
+        if len(self.image_data) > self.loaded_image_index:
+            x2 = event.pos().x()
+            y2 = event.pos().y()
+            if self.moving_rect and self.mouse_in_original_image:
+                x2 += self.editing_rect_offset[0]
+                y2 += self.editing_rect_offset[1]
+                self.editing_rect = (x2, y2, self.editing_rect[2], self.editing_rect[3])
+                self.draw()
+
+            if self.drawing_rect and self.mouse_in_original_image:
+                self.editing_rect = (
+                    self.editing_rect[0],
+                    self.editing_rect[1],
+                    x2 - self.editing_rect[0],
+                    y2 - self.editing_rect[1]
+                )
+                self.draw()
 
     def mouse_released(self, event):
         print("released")
-        if self.moving_rect or self.drawing_rect:
+        if self.moving_rect or self.drawing_rect and (len(self.image_data) > self.loaded_image_index):
             self.drawing_rect = False
             self.moving_rect = False
             if abs(self.editing_rect[2]) > 30 and abs(self.editing_rect[3]) > 30:
-                self.rects.append(positive_rect(self.editing_rect))
-                self.selected_rect_index = len(self.rects) - 1
+                self.image_data[self.loaded_image_index].text_areas_resized.append(
+                    ImageTextInfo(positive_rect(self.editing_rect))
+                )
+                self.selected_rect_index = len(self.image_data[self.loaded_image_index].text_areas_resized) - 1
             self.editing_rect = None
             self.draw()
 
-    def mouse_moved(self, event):
-        x2 = event.pos().x()
-        y2 = event.pos().y()
-        if self.moving_rect and self.mouse_in_original_image:
-            x2 += self.editing_rect_offset[0]
-            y2 += self.editing_rect_offset[1]
-            self.editing_rect = (x2, y2, self.editing_rect[2], self.editing_rect[3])
-            self.draw()
-
-        if self.drawing_rect and self.mouse_in_original_image:
-            self.editing_rect = (
-                self.editing_rect[0],
-                self.editing_rect[1],
-                x2 - self.editing_rect[0],
-                y2 - self.editing_rect[1]
-            )
-            self.draw()
 
     def enter_translated_image(self, event):
-        self.mouse_in_translated_image = True
         print("in trans")
+        self.mouse_in_translated_image = True
 
     def leave_translated_image(self, event):
-        self.mouse_in_translated_image = False
         print("out trans")
+        self.mouse_in_translated_image = False
 
     def enter_original_image(self, event):
-        self.mouse_in_original_image = True
         print("in orig")
+        self.mouse_in_original_image = True
 
     def leave_original_image(self, event):
-        self.mouse_in_original_image = False
         print("out orig")
+        self.mouse_in_original_image = False
 
 
 def pointInRect(point, rect):
@@ -181,7 +229,7 @@ def positive_rect(rect):
 
 def clear_pixmap(pixmap):
     painterInstance = QtGui.QPainter(pixmap)
-    painterInstance.eraseRect(QRect(0, 0, 2000, 2000))
+    # painterInstance.eraseRect(QRect(0, 0, 100, 100))
     painterInstance.end()
 
 

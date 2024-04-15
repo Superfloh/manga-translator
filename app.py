@@ -4,10 +4,11 @@ import os
 import pathlib
 import sys
 import traceback
+from typing import List
 
 import cv2
 from PyQt5 import QtGui, QtWidgets, QtCore
-from PyQt5.QtGui import QPixmap, QPainter, QBrush, QColor
+from PyQt5.QtGui import QPixmap, QPainter, QBrush, QColor, QImage
 from PyQt5.QtWidgets import (
     QApplication, QDialog, QMainWindow, QMessageBox, QLabel, QFileDialog
 )
@@ -15,10 +16,13 @@ from PyQt5.uic import loadUi
 from ultralytics import YOLO
 
 from helpers.drawer import pointInRect, clear_pixmap, get_resized_image, positive_rect, ImageDrawer
+from helpers.googleVision import google_vision_ocr
+from helpers.imageInfo import ImageInfo
 from helpers.segmentation import Segmentation
 from qt.main_window_ui import Ui_MainWindow
 from PyQt5.QtCore import Qt, pyqtSlot, QRect
 from asyncqt import QEventLoop, asyncSlot
+import pickle
 
 
 class Window(QMainWindow, Ui_MainWindow):
@@ -26,14 +30,27 @@ class Window(QMainWindow, Ui_MainWindow):
     @asyncSlot()
     async def start(self):
         print("async started")
-        input_frames = [cv2.imread('./images/testing/1_jap.jpg')]
-        self.segmentation_model = YOLO("./models/segmentation.pt")
-        self.detection_model = YOLO("./models/detection.pt")
-        detect_result = self.detection_model(input_frames, device="cpu", verbose=False),
-        segmentation_result = self.segmentation_model(input_frames, device="cpu", verbose=False),
-        print("models done")
-        segmentation = Segmentation(self.translated_image_container)
-        await segmentation.process_ml_results(detect_result, segmentation_result, input_frames[0])
+        segmentation = Segmentation()
+        image_info = await segmentation.pre_process_frame('./images/testing/1_jap.jpg')
+        #with open('data.pkl', 'wb') as file:
+        #    pickle.dump(image_info, file)
+        height, width, channel = image_info.frame_clean.shape
+        bytesPerLine = 3 * width
+        qImg = QImage(image_info.frame_clean.data, width, height, bytesPerLine, QImage.Format_RGB888)
+        self.translated_image_pixmap = QPixmap(qImg).scaledToWidth(640)
+        # google_vision_ocr('./images/testing/1_jap.jpg')
+        self.imageDrawer.image_data.append(image_info)
+        self.imageDrawer.draw()
+        # self.imageDrawer.draw_image_info(image_info)
+
+    def start2(self):
+        with open('data.pkl', 'rb') as file:
+            loaded_data = pickle.load(file)
+            print("data loaded")
+            self.imageDrawer.image_data.append(loaded_data)
+            print("data appended")
+            self.imageDrawer.draw()
+            print("data drawn")
 
     def load_images(self):
         options = QFileDialog.Options()
@@ -57,8 +74,14 @@ class Window(QMainWindow, Ui_MainWindow):
 
     def __init__(self, loop=None, parent=None):
         super().__init__(parent)
-        self.setupUi(self)
         self.loop = loop or asyncio.get_event_loop()
+        self.setupUi(self)
+        self.showMaximized()
+        self.loop = loop or asyncio.get_event_loop()
+
+        # image data
+        self.image_data: List[ImageInfo] = []
+        self.loaded_image_index = 0
 
         # segment button
         self.segment_button.clicked.connect(self.start)
@@ -82,16 +105,23 @@ class Window(QMainWindow, Ui_MainWindow):
         self.imageDrawer = ImageDrawer(self)
 
 
+def custom_exception_handler(loop, context):
+    # first, handle with default handler
+    print("eeee")
+    loop.default_exception_handler(context)
 
+    exception = context.get('exception')
+    print(context)
+    loop.stop()
 
 if __name__ == "__main__":
-    try:
-        app = QApplication(sys.argv)
-        loop = QEventLoop(app)
-        asyncio.set_event_loop(loop)
-        win = Window(loop)
-        win.show()
-        with loop:
-            loop.run_forever()
-    except:
-        logging.error(traceback.format_exc())
+    app = QApplication(sys.argv)
+    loop = QEventLoop(app)
+    asyncio.set_event_loop(loop)
+    win = Window(loop)
+    win.show()
+    loop.set_exception_handler(custom_exception_handler)
+    with loop:
+        loop.run_forever()
+
+
