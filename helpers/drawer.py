@@ -3,7 +3,8 @@ from typing import List
 import cv2
 from PyQt5 import QtGui
 from PyQt5.QtCore import QRect, Qt
-from PyQt5.QtGui import QPixmap, QPainter, QColor
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QFont
+from PyQt5.QtWidgets import QApplication
 
 from helpers.imageInfo import ImageInfo, ImageTextInfo
 
@@ -28,6 +29,12 @@ class ImageDrawer:
         self.editing_rect_initial_pos = None
         self.editing_rect_offset = [0, 0]
         self.selected_rect_index = -1
+
+        self.adjusting_rect = False
+        self.adjusting_rect_index = -1
+        self.adjusting_rect_axis = ""   # t = top, r = right, b = bot, l = left
+        self.adjusting_rect_start = (0, 0)
+        self.adjusting_rect_initial_pos = (0, 0, 0, 0)
 
         # wheres the mouse
         self.mouse_in_translated_image = False
@@ -74,8 +81,11 @@ class ImageDrawer:
                 else:
                     painter_instance.setPen(pen_rect)
                 painter_instance.drawRect(x1, y1, x2, y2)
+                painter_instance.setFont(QFont("times", 22))
+                painter_instance.drawText(x1-5, y1-5, str(x1) + ", " + str(y1))
             # editing rect
             if self.editing_rect:
+                painter_instance.setPen(pen_selected_rect)
                 painter_instance.drawRect(self.editing_rect[0], self.editing_rect[1], self.editing_rect[2],
                                           self.editing_rect[3])
             painter_instance.end()
@@ -103,18 +113,30 @@ class ImageDrawer:
 
             x2 = event.pos().x()
             y2 = event.pos().y()
+
             print("click, x=" + str(x2) + ", y=" + str(y2))
             fits = True
             rect_index = 0
             for i in range(0, len(self.image_data[self.loaded_image_index].text_areas_resized)):
                 rect = self.image_data[self.loaded_image_index].text_areas_resized[i].rect
-                # print(str(rect) + " in: " + str(pointInRect((x2, y2), rect)))
+
+                # check if the click was on a border of a rect for editing
                 if pointInRect((x2, y2), rect):
                     fits = False
                     rect_index = i
 
-            if fits:
-                print("starting editing")
+            on_border, on_border_axis, on_border_index = self.pos_on_border_of_rects((x2, y2))
+
+            if on_border:
+                print("start editing rect on axis " + str(on_border_axis))
+                self.adjusting_rect = True
+                self.adjusting_rect_index = on_border_index
+                self.adjusting_rect_axis = on_border_axis
+                self.adjusting_rect_start = (x2, y2)
+                self.adjusting_rect_initial_pos = self.image_data[self.loaded_image_index].text_areas_resized[on_border_index].rect
+                self.selected_rect_index = on_border_index
+            elif fits:
+                print("starting drawing")
                 self.drawing_rect = True
                 self.editing_rect = (x2, y2, 0, 0)
             else:
@@ -129,17 +151,17 @@ class ImageDrawer:
                 del self.image_data[self.loaded_image_index].text_areas_resized[rect_index]
 
     def mouse_moved(self, event):
-        # print("mouse moved")
+        #print("mouse moved")
         if len(self.image_data) > self.loaded_image_index:
             x2 = event.pos().x()
             y2 = event.pos().y()
+            # self.pos_on_border_of_rects((x2, y2))
             if self.moving_rect and self.mouse_in_original_image:
                 x2 += self.editing_rect_offset[0]
                 y2 += self.editing_rect_offset[1]
                 self.editing_rect = (x2, y2, self.editing_rect[2], self.editing_rect[3])
                 self.draw()
-
-            if self.drawing_rect and self.mouse_in_original_image:
+            elif self.drawing_rect and self.mouse_in_original_image:
                 self.editing_rect = (
                     self.editing_rect[0],
                     self.editing_rect[1],
@@ -147,9 +169,15 @@ class ImageDrawer:
                     y2 - self.editing_rect[1]
                 )
                 self.draw()
+            elif self.adjusting_rect and self.mouse_in_original_image:
+                self.adjust_rect((x2, y2))
+                self.draw()
+            else:
+                pass
 
     def mouse_released(self, event):
         print("released")
+        QApplication.setOverrideCursor(Qt.ArrowCursor)
         if self.moving_rect or self.drawing_rect and (len(self.image_data) > self.loaded_image_index):
             self.drawing_rect = False
             self.moving_rect = False
@@ -160,6 +188,8 @@ class ImageDrawer:
                 self.selected_rect_index = len(self.image_data[self.loaded_image_index].text_areas_resized) - 1
             self.editing_rect = None
             self.draw()
+        if self.adjusting_rect:
+            self.adjusting_rect = False
 
 
     def enter_translated_image(self, event):
@@ -177,6 +207,75 @@ class ImageDrawer:
     def leave_original_image(self, event):
         print("out orig")
         self.mouse_in_original_image = False
+
+    # editing an existing rect
+    def adjust_rect(self, click_pos):
+        x2, y2 = click_pos
+        if self.adjusting_rect_axis == "r":
+            # moving along X (to the right) -> adjust size only
+            x1, y1, _, h = self.image_data[self.loaded_image_index].text_areas_resized[self.adjusting_rect_index].rect
+            new_w = x2 - (self.adjusting_rect_initial_pos[0] + self.adjusting_rect_initial_pos[2]) + \
+                    self.adjusting_rect_initial_pos[2]
+            self.image_data[self.loaded_image_index].text_areas_resized[self.adjusting_rect_index].rect = (
+            x1, y1, new_w, h)
+        elif self.adjusting_rect_axis == "l":
+            # moving along X (to the left) -> adjust size and location
+            _, y1, _, h = self.image_data[self.loaded_image_index].text_areas_resized[self.adjusting_rect_index].rect
+            x1 = self.adjusting_rect_initial_pos[0] + (x2 - self.adjusting_rect_initial_pos[0])
+            new_w = self.adjusting_rect_initial_pos[2] + self.adjusting_rect_initial_pos[0] - x2
+            self.image_data[self.loaded_image_index].text_areas_resized[self.adjusting_rect_index].rect = (
+            x1, y1, new_w, h)
+        elif self.adjusting_rect_axis == "t":
+            # moving along Y (to the top) -> adjust size and location
+            x1, _, w, _ = self.image_data[self.loaded_image_index].text_areas_resized[self.adjusting_rect_index].rect
+            y1 = self.adjusting_rect_initial_pos[1] + (y2 - self.adjusting_rect_initial_pos[1])
+            new_h = self.adjusting_rect_initial_pos[3] + self.adjusting_rect_initial_pos[1] - y2
+            self.image_data[self.loaded_image_index].text_areas_resized[self.adjusting_rect_index].rect = (
+            x1, y1, w, new_h)
+        if self.adjusting_rect_axis == "b":
+            # moving along X (to the bottom) -> adjust size only
+            x1, y1, w, _ = self.image_data[self.loaded_image_index].text_areas_resized[self.adjusting_rect_index].rect
+            new_h = y2 - (self.adjusting_rect_initial_pos[1] + self.adjusting_rect_initial_pos[3]) + \
+                    self.adjusting_rect_initial_pos[3]
+            self.image_data[self.loaded_image_index].text_areas_resized[self.adjusting_rect_index].rect = (
+            x1, y1, w, new_h)
+
+    def pos_on_border_of_rects(self, point):
+        if len(self.image_data) > self.loaded_image_index:
+            index = 0
+            for image_info in self.image_data[self.loaded_image_index].text_areas_resized:
+                on_border, on_border_axis = point_on_border_of_rect(point, image_info.rect)
+                if on_border:
+                    if on_border_axis == "t" or on_border_axis == "b":
+                        QApplication.setOverrideCursor(Qt.SizeVerCursor)
+                    else:
+                        QApplication.setOverrideCursor(Qt.SizeHorCursor)
+                    return on_border, on_border_axis, index
+                index += 1
+        return False, -1, -1
+
+
+def point_on_border_of_rect(point, rect, border=10):
+    x2, y2 = point
+    on_border = False
+    on_border_axis = ""
+    if pointInRect((x2, y2), (rect[0], round(rect[1] - (border / 2)), rect[2], border)):
+        # top left to top right
+        on_border = True
+        on_border_axis = "t"
+    elif pointInRect((x2, y2), (rect[0], round(rect[1] - (border / 2)) + rect[3], rect[2], border)):
+        # bot left to bot right
+        on_border = True
+        on_border_axis = "b"
+    elif pointInRect((x2, y2), (round(rect[0] - (border / 2)), rect[1], border, rect[3])):
+        # top left to bot left
+        on_border = True
+        on_border_axis = "l"
+    elif pointInRect((x2, y2), (round(rect[0] + rect[2] - (border / 2)), rect[1], border, rect[3])):
+        # top right to bot right
+        on_border = True
+        on_border_axis = "r"
+    return on_border, on_border_axis
 
 
 def pointInRect(point, rect):
