@@ -125,7 +125,7 @@ async def translate_text(to_translate, translator, ocr, color_detect_model, devi
     except:
         traceback.print_exc()
         return None
-    return None
+    return [], [], [], []
 
 async def draw_text(frame, bboxes, translation_results, draw_colors, drawer=HorizontalDrawer()):
     to_draw = []

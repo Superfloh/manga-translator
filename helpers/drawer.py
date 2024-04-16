@@ -48,9 +48,11 @@ class ImageDrawer:
     def update_selected_rect_info(self):
         selected = self.image_data[self.loaded_image_index].text_areas_resized[self.selected_rect_index]
         rect = selected.rect
-        self.window.selected_rect_index_label.setText("Index: " + str(self.selected_rect_index))
-        self.window.selected_rect_pos_label.setText("Position: " + str(rect[0]) + ", " + str(rect[1]))
-        self.window.selected_rect_size_label.setText("Size: " + str(rect[2]) + " x " + str(rect[3]))
+        self.window.selected_rect_label.setText("Index: " +
+                                                str(self.selected_rect_index) +
+                                                " (" + str(rect[0]) + ", " +
+                                                str(rect[1]) + ", " + str(rect[2]) +
+                                                ", " + str(rect[3]) + ")")
         self.window.original_text_input.setText(selected.ocr_text)
         self.window.translation_text_input.setText(selected.translated_text)
 

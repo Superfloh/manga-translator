@@ -49,7 +49,8 @@ class Window(QMainWindow, Ui_MainWindow):
             await self.redraw()
             self.imageDrawer.update_selected_rect_info()
 
-    def load_images(self):
+    @asyncSlot()
+    async def load_images(self):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         folder = QFileDialog.getExistingDirectory(self, "Select Folder", options=options)
@@ -65,8 +66,11 @@ class Window(QMainWindow, Ui_MainWindow):
             print(loaded_images)
 
             if len(loaded_images) > 0:
-                self.imageDrawer.loaded_images = loaded_images
-                self.imageDrawer.current_original_image = loaded_images[0]
+                # sadly this is not concurrent
+                tasks = [self.segmentation.process_frame_full(loaded_image) for loaded_image in loaded_images]
+                results = await asyncio.gather(*tasks)
+                self.imageDrawer.image_data = results
+                self.imageDrawer.loaded_image_index = 0
                 self.imageDrawer.draw()
 
     def __init__(self, loop=None, parent=None):
@@ -104,12 +108,24 @@ class Window(QMainWindow, Ui_MainWindow):
         self.redraw_button.clicked.connect(self.redraw)
         self.retranslate_button.clicked.connect(self.re_translate)
 
+        self.next_button.clicked.connect(self.next_image)
+        self.back_button.clicked.connect(self.prev_image)
+
         self.imageDrawer = ImageDrawer(self)
         self.segmentation = Segmentation()
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Delete:
-            self.imageDrawer.delete_selected_rect()
+    def next_image(self):
+        self.imageDrawer.loaded_image_index += 1
+        if self.imageDrawer.loaded_image_index >= len(self.imageDrawer.image_data):
+            self.imageDrawer.loaded_image_index = len(self.imageDrawer.image_data) - 1
+        self.imageDrawer.draw()
+
+    def prev_image(self):
+        self.imageDrawer.loaded_image_index -= 1
+        if self.imageDrawer.loaded_image_index < 0:
+            self.imageDrawer.loaded_image_index = 0
+        self.imageDrawer.draw()
+
 
 
 def custom_exception_handler(loop, context):
