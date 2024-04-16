@@ -20,7 +20,7 @@ import asyncio
 from typing import Union
 from concurrent.futures import ThreadPoolExecutor
 from translator.color_detect.models import get_color_detection_model
-from translator.core.plugin import Drawable, Translator, Ocr, Drawer, Cleaner
+from translator.core.plugin import Drawable, Translator, Ocr, Drawer, Cleaner, OcrResult
 from translator.cleaners.deepfillv2 import DeepFillV2Cleaner
 from translator.drawers.horizontal import HorizontalDrawer
 
@@ -89,7 +89,7 @@ async def process_frame_v2(frame, frame_clean, text_mask, detect_result):
         traceback.print_exc()
 
 
-async def translate_text(to_translate, translator, ocr, color_detect_model, device="cpu"):
+async def translate_text(to_translate, translator, ocr, color_detect_model, device="cpu", language="ja"):
     try:
         if len(to_translate) > 0:
 
@@ -118,6 +118,9 @@ async def translate_text(to_translate, translator, ocr, color_detect_model, devi
             bboxes, images = zip(*to_translate)
 
             ocr_results = await ocr(list(images))
+
+            # overwrite language
+            ocr_results = [OcrResult(res.text, language) for res in ocr_results]
 
             translation_results = await translator(ocr_results)
 

@@ -121,14 +121,3 @@ def pointInRect(point, rect):
         if (y1 < y and y < y2):
             return True
     return False
-
-
-def positive_rect(rect):
-    x1, y1, w, h = rect
-    if w < 0:
-        x1 += w
-        w *= -1
-    if h < 0:
-        y1 += h
-        h *= -1
-    return x1, y1, w, h

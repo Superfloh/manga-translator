@@ -4,7 +4,10 @@ from helpers.imageInfo import ImageInfo
 from helpers.segmentation_copy import process_frame_v2, translate_text, draw_text
 from translator.color_detect.models import get_color_detection_model
 from translator.core.plugin import TranslatorResult, OcrResult
+from translator.ocr.easy_ocr import EasyOcr
+from translator.ocr.google_vision_ocr import GoogleVisionOcr
 from translator.ocr.huggingface_ja import JapaneseOcr
+from translator.ocr.tessaract_ocr import TesseractOcr
 from translator.pipelines import FullConversion
 from translator.translators.deepl import DeepLTranslator
 from translator.utils import get_model_path
@@ -12,9 +15,11 @@ from translator.utils import get_model_path
 
 class Segmentation:
 
-    def __init__(self):
-        self.translator = DeepLTranslator("")
-        self.ocr = JapaneseOcr()
+    def __init__(self, ocr_index=0, translator_index=0, language_index=0):
+        self.language = self.get_language(language_index)
+        print("created segmentor with language " + self.language)
+        self.translator = self.get_translator(translator_index)
+        self.ocr = self.get_ocr(ocr_index)
         self.segmentor = FullConversion(
             translator=self.translator,
             ocr=self.ocr,
@@ -23,6 +28,27 @@ class Segmentation:
             weights_path=get_model_path("color_detection.pt"), device="cpu"
         )
         self.color_detect_model.eval()
+
+    # "Japanese", "Google Vision", "Tesseract", "Easy OCR"
+    def get_ocr(self, index):
+        if index == 0:
+            return JapaneseOcr()
+        if index == 1:
+            return GoogleVisionOcr()
+        if index == 2:
+            return TesseractOcr()
+        if index == 3:
+            return EasyOcr()
+
+    def get_translator(self, index):
+        if index == 0:
+            return DeepLTranslator("")
+
+    def get_language(self, index):
+        if index == 0:
+            return "ja"
+        if index == 1:
+            return "zh"
 
     async def process_frame_full(self, image_path):
         image = cv2.imread(image_path)
@@ -50,7 +76,9 @@ class Segmentation:
             to_translate,
             self.translator,
             self.ocr,
-            self.color_detect_model
+            self.color_detect_model,
+            "cpu",
+            self.language
         )
 
         translated_frame = await draw_text(cleaned_frame.copy(), bboxes, translation_results, draw_colors)
@@ -85,5 +113,5 @@ class Segmentation:
     async def re_translate_frame(self, image_info: ImageInfo):
         res = []
         for x in image_info.text_areas_resized:
-            res.append(OcrResult(x.ocr_text, "ja"))
+            res.append(OcrResult(x.ocr_text, self.language))
         return await self.translator(res)

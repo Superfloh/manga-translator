@@ -24,14 +24,18 @@ class Window(QMainWindow, Ui_MainWindow):
 
     @asyncSlot()
     async def start(self):
-        print("async started")
-        image_info = await self.segmentation.process_frame_full('./images/testing/1_jap.jpg')
-        self.imageDrawer.image_data.append(image_info)
-        self.imageDrawer.draw()
+        if len(self.imageDrawer.image_data) > self.imageDrawer.loaded_image_index:
+            self.update_segmentation_params()
+            print("async started")
+            current_image = self.imageDrawer.image_data[self.imageDrawer.loaded_image_index].original_image_path
+            image_info = await self.segmentation.process_frame_full(current_image)
+            self.imageDrawer.image_data[self.imageDrawer.loaded_image_index] = image_info
+            self.imageDrawer.draw()
 
     @asyncSlot()
     async def redraw(self):
         if len(self.imageDrawer.image_data) > self.imageDrawer.loaded_image_index:
+            self.update_segmentation_params()
             image_info = self.imageDrawer.image_data[self.imageDrawer.loaded_image_index]
             translated_frame = await self.segmentation.redraw_frame(image_info)
             self.imageDrawer.image_data[self.imageDrawer.loaded_image_index].translated_frame = translated_frame
@@ -41,6 +45,7 @@ class Window(QMainWindow, Ui_MainWindow):
     @asyncSlot()
     async def re_translate(self):
         if len(self.imageDrawer.image_data) > self.imageDrawer.loaded_image_index:
+            self.update_segmentation_params()
             trans_res = await self.segmentation.re_translate_frame(self.imageDrawer.image_data[self.imageDrawer.loaded_image_index])
             index = 0
             for x in trans_res:
@@ -67,11 +72,20 @@ class Window(QMainWindow, Ui_MainWindow):
 
             if len(loaded_images) > 0:
                 # sadly this is not concurrent
+                self.update_segmentation_params()
                 tasks = [self.segmentation.process_frame_full(loaded_image) for loaded_image in loaded_images]
                 results = await asyncio.gather(*tasks)
                 self.imageDrawer.image_data = results
                 self.imageDrawer.loaded_image_index = 0
                 self.imageDrawer.draw()
+
+    def update_segmentation_params(self):
+        del self.segmentation
+        self.segmentation = Segmentation(
+            self.ocr_select.currentIndex(),
+            0,
+            self.language_select.currentIndex()
+        )
 
     def __init__(self, loop=None, parent=None):
         super().__init__(parent)
@@ -105,11 +119,16 @@ class Window(QMainWindow, Ui_MainWindow):
         # TODO: prevent images from being re-drawn every tick
         # self.translated_image_container.paintEvent = self.paintEvent
 
+        # re-draw, re-translate buttons
         self.redraw_button.clicked.connect(self.redraw)
         self.retranslate_button.clicked.connect(self.re_translate)
 
+        # next, back buttons
         self.next_button.clicked.connect(self.next_image)
         self.back_button.clicked.connect(self.prev_image)
+
+        self.language_select.addItems(["Japanese", "Chinese"])
+        self.ocr_select.addItems(["Japanese", "Google Vision", "Tesseract", "Easy OCR"])
 
         self.imageDrawer = ImageDrawer(self)
         self.segmentation = Segmentation()

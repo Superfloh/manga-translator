@@ -51,6 +51,7 @@ class DeepLTranslator(Translator):
             return TranslatorResult("Language not supported (" + result.language + ")")
         try:
 
+            print("Translating " + result.text + " (" + result.language+")")
             uri = f"https://api-free.deepl.com/v2/translate?{'&'.join([f'{data[i][0]}={data[i][1]}' for i in range(len(data))])}"
             uri = requote_uri(uri)
 
@@ -62,7 +63,7 @@ class DeepLTranslator(Translator):
                     data = await response.json()
 
                     return TranslatorResult(
-                        data["translations"][0]["text"], lang_code="ja"
+                        data["translations"][0]["text"], lang_code=result.language
                     )
         except:
             traceback.print_exc()
