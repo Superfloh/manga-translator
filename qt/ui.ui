@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>960</width>
+    <width>961</width>
     <height>540</height>
    </rect>
   </property>
@@ -61,9 +61,196 @@
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
-         <widget class="QLabel" name="label_2">
+         <spacer name="verticalSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_1">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
           <property name="text">
-           <string>TextLabel</string>
+           <string>Selected rect:</string>
+          </property>
+          <property name="margin">
+           <number>2</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="selected_rect_index_label">
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>Index: -1</string>
+          </property>
+          <property name="margin">
+           <number>2</number>
+          </property>
+          <property name="indent">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="selected_rect_pos_label">
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>Position: 0, 0</string>
+          </property>
+          <property name="margin">
+           <number>2</number>
+          </property>
+          <property name="indent">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="selected_rect_size_label">
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>Size: 0 x 0</string>
+          </property>
+          <property name="margin">
+           <number>2</number>
+          </property>
+          <property name="indent">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="verticalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>10</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_5">
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Original Text:</string>
+          </property>
+          <property name="margin">
+           <number>2</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTextBrowser" name="original_text_input">
+          <property name="font">
+           <font>
+            <pointsize>12</pointsize>
+           </font>
+          </property>
+          <property name="documentTitle">
+           <string/>
+          </property>
+          <property name="undoRedoEnabled">
+           <bool>true</bool>
+          </property>
+          <property name="readOnly">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="retranslate_button">
+          <property name="text">
+           <string>Re-translate</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_6">
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Plain</enum>
+          </property>
+          <property name="lineWidth">
+           <number>1</number>
+          </property>
+          <property name="text">
+           <string>Translation:</string>
+          </property>
+          <property name="margin">
+           <number>2</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTextBrowser" name="translation_text_input">
+          <property name="font">
+           <font>
+            <pointsize>12</pointsize>
+           </font>
+          </property>
+          <property name="undoRedoEnabled">
+           <bool>true</bool>
+          </property>
+          <property name="readOnly">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="redraw_button">
+          <property name="text">
+           <string>Re-draw</string>
           </property>
          </widget>
         </item>
@@ -78,6 +265,11 @@
             <horstretch>1</horstretch>
             <verstretch>1</verstretch>
            </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
           </property>
           <property name="text">
            <string>Original</string>
@@ -106,6 +298,11 @@
        <layout class="QVBoxLayout" name="verticalLayout" stretch="1,1,10">
         <item>
          <widget class="QLabel" name="translated_image_text">
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
           <property name="text">
            <string>Result</string>
           </property>

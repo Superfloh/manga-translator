@@ -46,9 +46,6 @@ async def process_frame_v2(frame, frame_clean, text_mask, detect_result):
                 bubble = frame[y1:y2, x1:x2]
                 bubble_clean = frame_clean[y1:y2, x1:x2]
                 bubble_text_mask = text_mask[y1:y2, x1:x2]
-                cv2.imwrite("bubble_" + str(index) + ".jpg", bubble)
-                cv2.imwrite("bubble_clean_" + str(index) + ".jpg", bubble_clean)
-                cv2.imwrite("bubble_text_mask_" + str(index) + ".jpg", bubble_text_mask)
 
                 if class_name == "text_bubble":
                     if has_white(bubble_text_mask):
@@ -69,7 +66,6 @@ async def process_frame_v2(frame, frame_clean, text_mask, detect_result):
                         pt1_y += y1
                         pt2_y += y1
 
-                        cv2.imwrite("text_only" + str(index) + ".jpg", text_only)
 
                         to_translate.append([(pt1_x, pt1_y, pt2_x, pt2_y), text_only])
 
@@ -82,22 +78,18 @@ async def process_frame_v2(frame, frame_clean, text_mask, detect_result):
                             free_text, bubble_text_mask, bubble_clean
                         )
 
-                        cv2.imwrite("text_only_free_" + str(index) + ".jpg", text_only)
-
                         to_translate.append([(x1, y1, x2, y2), text_only])
 
                     frame[y1:y2, x1:x2] = frame_clean[y1:y2, x1:x2]
             except:
                 traceback.print_exc()
 
-        print(to_translate)  # list(tuple(x1, y1, x2, y2), frame)
-
         return frame, detect_result, to_translate
     except:
         traceback.print_exc()
 
 
-async def translate_and_draw_text(frame, to_translate, translator, ocr, color_detect_model, device="cpu", drawer=HorizontalDrawer()):
+async def translate_text(to_translate, translator, ocr, color_detect_model, device="cpu"):
     try:
         if len(to_translate) > 0:
 
@@ -129,31 +121,25 @@ async def translate_and_draw_text(frame, to_translate, translator, ocr, color_de
 
             translation_results = await translator(ocr_results)
 
-            for i in range(0, len(ocr_results)):
-                print("text: " + ocr_results[i].text + ", translation: " + translation_results[i].text)
-
-            to_draw = []
-            for bbox, translation, color in zip(bboxes, translation_results, draw_colors):
-                (x1, y1, x2, y2) = bbox
-                draw_area = frame[y1:y2, x1:x2].copy()
-
-                to_draw.append(Drawable(color=color, frame=draw_area, translation=translation))
-
-            print(f"Ocr And Translation => {time.time() - start} seconds")
-
-            start = time.time()
-
-            drawn_frames = await drawer(to_draw)
-
-            cv2.imwrite("frame2.jpg", frame)
-
-            for bbox, drawn_frame in zip(bboxes, drawn_frames):
-                (x1, y1, x2, y2) = bbox
-                drawn_frame, drawn_frame_mask = drawn_frame
-                frame[y1:y2, x1:x2] = apply_mask(drawn_frame, frame[y1:y2, x1:x2], drawn_frame_mask)
-
-            print(f"Drawing => {time.time() - start} seconds")
-        return frame
+            return bboxes, ocr_results, translation_results, draw_colors
     except:
         traceback.print_exc()
-        return frame
+        return None
+    return None
+
+async def draw_text(frame, bboxes, translation_results, draw_colors, drawer=HorizontalDrawer()):
+    to_draw = []
+    for bbox, translation, color in zip(bboxes, translation_results, draw_colors):
+        (x1, y1, x2, y2) = bbox
+        draw_area = frame[y1:y2, x1:x2].copy()
+
+        to_draw.append(Drawable(color=color, frame=draw_area, translation=translation))
+
+    drawn_frames = await drawer(to_draw)
+
+    for bbox, drawn_frame in zip(bboxes, drawn_frames):
+        (x1, y1, x2, y2) = bbox
+        drawn_frame, drawn_frame_mask = drawn_frame
+        frame[y1:y2, x1:x2] = apply_mask(drawn_frame, frame[y1:y2, x1:x2], drawn_frame_mask)
+
+    return frame

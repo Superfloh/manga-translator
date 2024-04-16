@@ -1,27 +1,22 @@
 import asyncio
-import logging
+
 import os
 import pathlib
 import sys
-import traceback
+
 from typing import List
 
-import cv2
-from PyQt5 import QtGui, QtWidgets, QtCore
-from PyQt5.QtGui import QPixmap, QPainter, QBrush, QColor, QImage
+from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtWidgets import (
-    QApplication, QDialog, QMainWindow, QMessageBox, QLabel, QFileDialog
+    QApplication, QMainWindow, QFileDialog
 )
-from PyQt5.uic import loadUi
-from ultralytics import YOLO
 
-from helpers.drawer import pointInRect, clear_pixmap, get_resized_image, positive_rect, ImageDrawer
-from helpers.googleVision import google_vision_ocr
+from helpers.drawer import ImageDrawer
 from helpers.imageInfo import ImageInfo
 from helpers.segmentation import Segmentation
 from qt.main_window_ui import Ui_MainWindow
-from PyQt5.QtCore import Qt, pyqtSlot, QRect
-from asyncqt import QEventLoop, asyncSlot
+from PyQt5.QtCore import Qt
+from qasync import QEventLoop, asyncSlot
 import pickle
 
 
@@ -30,27 +25,29 @@ class Window(QMainWindow, Ui_MainWindow):
     @asyncSlot()
     async def start(self):
         print("async started")
-        segmentation = Segmentation()
-        image_info = await segmentation.pre_process_frame('./images/testing/1_jap.jpg')
-        #with open('data.pkl', 'wb') as file:
-        #    pickle.dump(image_info, file)
-        height, width, channel = image_info.frame_clean.shape
-        bytesPerLine = 3 * width
-        qImg = QImage(image_info.frame_clean.data, width, height, bytesPerLine, QImage.Format_RGB888)
-        self.translated_image_pixmap = QPixmap(qImg).scaledToWidth(640)
-        # google_vision_ocr('./images/testing/1_jap.jpg')
+        image_info = await self.segmentation.process_frame_full('./images/testing/1_jap.jpg')
         self.imageDrawer.image_data.append(image_info)
         self.imageDrawer.draw()
-        # self.imageDrawer.draw_image_info(image_info)
 
-    def start2(self):
-        with open('data.pkl', 'rb') as file:
-            loaded_data = pickle.load(file)
-            print("data loaded")
-            self.imageDrawer.image_data.append(loaded_data)
-            print("data appended")
+    @asyncSlot()
+    async def redraw(self):
+        if len(self.imageDrawer.image_data) > self.imageDrawer.loaded_image_index:
+            image_info = self.imageDrawer.image_data[self.imageDrawer.loaded_image_index]
+            translated_frame = await self.segmentation.redraw_frame(image_info)
+            self.imageDrawer.image_data[self.imageDrawer.loaded_image_index].translated_frame = translated_frame
             self.imageDrawer.draw()
-            print("data drawn")
+            print("redrawn image")
+
+    @asyncSlot()
+    async def re_translate(self):
+        if len(self.imageDrawer.image_data) > self.imageDrawer.loaded_image_index:
+            trans_res = await self.segmentation.re_translate_frame(self.imageDrawer.image_data[self.imageDrawer.loaded_image_index])
+            index = 0
+            for x in trans_res:
+                self.imageDrawer.image_data[self.imageDrawer.loaded_image_index].text_areas_resized[index].translated_text = x.text
+                index += 1
+            await self.redraw()
+            self.imageDrawer.update_selected_rect_info()
 
     def load_images(self):
         options = QFileDialog.Options()
@@ -104,7 +101,11 @@ class Window(QMainWindow, Ui_MainWindow):
         # TODO: prevent images from being re-drawn every tick
         # self.translated_image_container.paintEvent = self.paintEvent
 
+        self.redraw_button.clicked.connect(self.redraw)
+        self.retranslate_button.clicked.connect(self.re_translate)
+
         self.imageDrawer = ImageDrawer(self)
+        self.segmentation = Segmentation()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Delete:
