@@ -94,26 +94,7 @@ async def translate_text(to_translate, translator, ocr, color_detect_model, devi
         if len(to_translate) > 0:
 
             # third pass, draw text
-            draw_colors = [(TranslatorGlobals.COLOR_BLACK, TranslatorGlobals.COLOR_BLACK, False) for x in to_translate]
-
-            start = time.time()
-            if color_detect_model is not None and len(draw_colors) > 0:
-                with torch.no_grad():  # model needs work
-                    with torch.inference_mode():
-
-                        images = [apply_transforms(frame_with_text.copy()) for _, frame_with_text in to_translate]
-
-                        draw_colors = [((y[0:3] * 255).astype(np.uint8), (y[3:-1] * 255).astype(np.uint8),
-                                        (True if y[-1] > 0.5 else False)) for y in [
-                                           x.cpu().numpy()
-                                           for x in color_detect_model(
-                                                torch.stack(images).to(
-                                                    device
-                                                )
-                                            )
-                                       ]]
-            else:
-                print("Using black since color detect model is 'None'")
+            draw_colors = [(TranslatorGlobals.COLOR_BLACK, TranslatorGlobals.COLOR_WHITE, True) for x in to_translate]
 
             bboxes, images = zip(*to_translate)
 
@@ -135,7 +116,6 @@ async def draw_text(frame, bboxes, translation_results, draw_colors, drawer=Hori
     for bbox, translation, color in zip(bboxes, translation_results, draw_colors):
         (x1, y1, x2, y2) = bbox
         draw_area = frame[y1:y2, x1:x2].copy()
-
         to_draw.append(Drawable(color=color, frame=draw_area, translation=translation))
 
     drawn_frames = await drawer(to_draw)

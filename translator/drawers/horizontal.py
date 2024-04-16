@@ -29,7 +29,7 @@ class HorizontalDrawer(Drawer):
     """Draws text horizontaly"""
 
     def __init__(
-        self, font_file="fonts/animeace2_reg.ttf", max_font_size="30", line_spacing="2"
+            self, font_file="fonts/animeace2_reg.ttf", max_font_size="30", line_spacing="2"
     ) -> None:
         super().__init__()
         self.font_file = font_file
@@ -37,17 +37,16 @@ class HorizontalDrawer(Drawer):
         self.line_spacing = round(float(line_spacing))
 
     async def draw(
-        self,batch: list[Drawable]
-    ) -> list[tuple[ndarray,ndarray]]:
+            self, batch: list[Drawable]
+    ) -> list[tuple[ndarray, ndarray]]:
         return await asyncio.gather(*[self.draw_one(x) for x in batch])
-                
-    
+
     async def draw_one(
-        self, item: Drawable
-    ) -> tuple[ndarray,ndarray]:
+            self, item: Drawable
+    ) -> tuple[ndarray, ndarray]:
         item_mask = np.zeros_like(item.frame)
         if len(item.translation.text.strip()) <= 0:
-            return (item.frame,item_mask)
+            return (item.frame, item_mask)
 
         frame_h, frame_w, _ = item.frame.shape
 
@@ -68,18 +67,17 @@ class HorizontalDrawer(Drawer):
         )
 
         if not font_size:
-            return (item.frame,item_mask)
+            return (item.frame, item_mask)
 
         font = ImageFont.truetype(self.font_file, font_size)
 
-        font
         draw_x = 0
         draw_y = 0
 
         wrapped = wrap_text(item.translation.text, chars_per_line, hyphenator=hyphenator)
 
         frame_as_pil = cv2_to_pil(item.frame)
-        
+
         mask_as_pil = cv2_to_pil(item_mask)
 
         image_draw = ImageDraw.Draw(frame_as_pil)
@@ -97,8 +95,8 @@ class HorizontalDrawer(Drawer):
         #     if sim_to_black < sim_to_white:
         #         color_bg = np.array([0,0,0]).astype(np.uint8)
 
-        color_fg,color_bg,should_do_bg = item.color
-        
+        color_fg, color_bg, should_do_bg = item.color
+
         stroke_width = 2 if should_do_bg else 0
 
         # print("SIMILARITY",luminance_similarity(item.color[0],item.color[1]),item.color)
@@ -113,23 +111,23 @@ class HorizontalDrawer(Drawer):
                     draw_y
                     + self.line_spacing
                     + (
-                        (
-                            frame_h
-                            - (
-                                (len(wrapped) * line_height)
-                                + (len(wrapped) * self.line_spacing)
+                            (
+                                    frame_h
+                                    - (
+                                            (len(wrapped) * line_height)
+                                            + (len(wrapped) * self.line_spacing)
+                                    )
                             )
-                        )
-                        / 2
+                            / 2
                     )
                     + (line_no * line_height)
                     + (self.line_spacing * line_no),
                 ),
                 str(line),
-                fill=(*color_fg,255),
+                fill=(0, 0, 0, 255),
                 font=font,
                 stroke_width=stroke_width,
-                stroke_fill=(*color_bg,255) if stroke_width > 0 else None
+                stroke_fill=(255,255,255, 255) if stroke_width > 0 else None
             )
 
             mask_draw.text(
@@ -138,14 +136,14 @@ class HorizontalDrawer(Drawer):
                     draw_y
                     + self.line_spacing
                     + (
-                        (
-                            frame_h
-                            - (
-                                (len(wrapped) * line_height)
-                                + (len(wrapped) * self.line_spacing)
+                            (
+                                    frame_h
+                                    - (
+                                            (len(wrapped) * line_height)
+                                            + (len(wrapped) * self.line_spacing)
+                                    )
                             )
-                        )
-                        / 2
+                            / 2
                     )
                     + (line_no * line_height)
                     + (self.line_spacing * line_no),
@@ -157,12 +155,11 @@ class HorizontalDrawer(Drawer):
                 stroke_fill=(255, 255, 255) if stroke_width > 0 else None
             )
 
-        mask_cv2 = cv2.cvtColor(pil_to_cv2(mask_as_pil),cv2.COLOR_BGR2GRAY)
+        mask_cv2 = cv2.cvtColor(pil_to_cv2(mask_as_pil), cv2.COLOR_BGR2GRAY)
 
         _, binary_mask = cv2.threshold(mask_cv2, 1, 255, cv2.THRESH_BINARY)
 
-        return (pil_to_cv2(frame_as_pil),binary_mask)
-        
+        return (pil_to_cv2(frame_as_pil), binary_mask)
 
     @staticmethod
     def get_arguments() -> list[PluginArgument]:
