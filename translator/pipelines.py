@@ -147,9 +147,6 @@ class FullConversion:
 
         print(f"Inpainting => {time.time() - start} seconds")
 
-        cv2.imwrite("clean.jpg", frame_clean)
-        cv2.imwrite("frame.jpg", frame)
-
         return frame, frame_clean, text_mask, detect_result
 
     async def process_frame(self, detect_result=None, seg_result=None, input_frame=None, processed_frame=None):
@@ -161,7 +158,6 @@ class FullConversion:
             else:
                 frame, frame_clean, text_mask, detect_result = processed_frame
 
-            cv2.imwrite("to_translate_pre.jpg", frame)
             to_translate = []
             index = 0
             # First pass, mask all bubbles
@@ -181,9 +177,6 @@ class FullConversion:
                     bubble = frame[y1:y2, x1:x2]
                     bubble_clean = frame_clean[y1:y2, x1:x2]
                     bubble_text_mask = text_mask[y1:y2, x1:x2]
-                    cv2.imwrite("bubble_" + str(index) + ".jpg", bubble)
-                    cv2.imwrite("bubble_clean_" + str(index) + ".jpg", bubble_clean)
-                    cv2.imwrite("bubble_text_mask_" + str(index) + ".jpg", bubble_text_mask)
 
                     if class_name == "text_bubble":
                         if has_white(bubble_text_mask):
@@ -205,7 +198,6 @@ class FullConversion:
                             pt2_y += y1
 
                             to_translate.append([(pt1_x, pt1_y, pt2_x, pt2_y), text_only])
-                            cv2.imwrite("text_only_" + str(index) + ".jpg", text_only)
 
                             # frame = cv2.rectangle(frame,(x1,y1),(x2,y2),color=(255,255,0),thickness=2)
                             # debug_image(text_only,"Text Only")
@@ -218,7 +210,6 @@ class FullConversion:
                                 )
 
                                 to_translate.append([(x1, y1, x2, y2), text_only])
-                                cv2.imwrite("text_only_free_" + str(index) + ".jpg", text_only)
 
                             frame[y1:y2, x1:x2] = frame_clean[y1:y2, x1:x2]
                         else:
@@ -236,9 +227,6 @@ class FullConversion:
                         )
                 except:
                     traceback.print_exc()
-
-            print(to_translate) # list(tuple(x1, y1, x2, y2), frame)
-            cv2.imwrite("to_translate.jpg", frame)
 
             # second pass, fix intersecting text areas
             # for i in range(len(to_translate)):
@@ -379,9 +367,6 @@ class FullConversion:
                 start = time.time()
 
                 drawn_frames = await self.drawer(to_draw)
-
-                cv2.imwrite("frame2.jpg", frame)
-
 
                 for bbox, drawn_frame in zip(bboxes,drawn_frames):
                     (x1, y1, x2, y2) = bbox
