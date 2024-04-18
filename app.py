@@ -87,6 +87,15 @@ class Window(QMainWindow, Ui_MainWindow):
             self.language_select.currentIndex()
         )
 
+    def show_result(self):
+        self.imageDrawer.set_show(show_result=True)
+
+    def show_clean(self):
+        self.imageDrawer.set_show(show_clean=True)
+
+    def show_mask(self):
+        self.imageDrawer.set_show(show_mask=True)
+
     def __init__(self, loop=None, parent=None):
         super().__init__(parent)
         self.loop = loop or asyncio.get_event_loop()
@@ -129,6 +138,10 @@ class Window(QMainWindow, Ui_MainWindow):
 
         self.language_select.addItems(["Japanese", "Chinese"])
         self.ocr_select.addItems(["Japanese", "Google Vision", "Tesseract", "Easy OCR"])
+
+        self.show_result_button.clicked.connect(self.show_result)
+        self.show_clean_button.clicked.connect(self.show_clean)
+        self.show_text_mask_button.clicked.connect(self.show_mask)
 
         self.imageDrawer = ImageDrawer(self)
         self.segmentation = Segmentation()

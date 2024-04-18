@@ -19,6 +19,7 @@ class ImageDrawer:
         self.image_data: List[ImageInfo] = []
         self.loaded_image_index = 0  # index of the currently shown image in the UI
 
+        # rects
         self.selected_rect_index = -1
 
         # settings
@@ -26,10 +27,21 @@ class ImageDrawer:
         self.rect_color = QColor(255, 0, 0, 180)
         self.selected_rect_color = QColor(255, 110, 110, 200)
 
+        # selection
+        self.show_result = True
+        self.show_clean = False
+        self.show_mask = False
+
         self.window.original_image_container.mousePressEvent = self.select_rect
 
         self.window.original_text_input.textChanged.connect(self.original_text_changed)
         self.window.translation_text_input.textChanged.connect(self.translated_text_changed)
+
+    def set_show(self, show_result=False, show_clean=False, show_mask=False):
+        self.show_result = show_result
+        self.show_clean = show_clean
+        self.show_mask = show_mask
+        self.draw()
 
     def select_rect(self, event):
         if len(self.image_data) > self.loaded_image_index:
@@ -67,7 +79,15 @@ class ImageDrawer:
             # draw the translated image
             height, width, channel = image_info.translated_frame.shape
             bytes_per_line = 3 * width
-            q_img = QImage(image_info.translated_frame.data, width, height, bytes_per_line, QImage.Format_RGB888)
+            if self.show_result:
+                q_img = QImage(image_info.translated_frame.data, width, height, bytes_per_line, QImage.Format_RGB888)
+            elif self.show_clean:
+                q_img = QImage(image_info.frame_clean.data, width, height, bytes_per_line, QImage.Format_RGB888)
+            elif self.show_mask:
+                q_img = QImage(image_info.text_mask.data, width, height, bytes_per_line, QImage.Format_RGB888)
+            else:
+                return
+
             self.window.translated_image_pixmap = QPixmap(q_img).scaledToWidth(640)
 
             # draw the rects
@@ -104,13 +124,15 @@ class ImageDrawer:
 
     def original_text_changed(self):
         if len(self.image_data) > self.loaded_image_index and self.selected_rect_index >= 0:
-            self.image_data[self.loaded_image_index].text_areas_resized[self.selected_rect_index].ocr_text = self.window.original_text_input.toPlainText()
+            self.image_data[self.loaded_image_index].text_areas_resized[
+                self.selected_rect_index].ocr_text = self.window.original_text_input.toPlainText()
 
     def translated_text_changed(self):
         if len(self.image_data) > self.loaded_image_index and self.selected_rect_index >= 0:
-            self.image_data[self.loaded_image_index].text_areas_resized[self.selected_rect_index].translated_text = self.window.translation_text_input.toPlainText()
-            print("translated changed to " + self.image_data[self.loaded_image_index].text_areas_resized[self.selected_rect_index].translated_text)
-
+            self.image_data[self.loaded_image_index].text_areas_resized[
+                self.selected_rect_index].translated_text = self.window.translation_text_input.toPlainText()
+            print("translated changed to " + self.image_data[self.loaded_image_index].text_areas_resized[
+                self.selected_rect_index].translated_text)
 
 
 def pointInRect(point, rect):
