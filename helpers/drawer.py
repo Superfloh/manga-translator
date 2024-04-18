@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 import cv2
@@ -42,6 +43,13 @@ class ImageDrawer:
         self.show_clean = show_clean
         self.show_mask = show_mask
         self.draw()
+
+    def save_results(self, folder):
+        for image_info in self.image_data:
+            original_filename = os.path.basename(image_info.original_image_path)
+            original_extension = os.path.splitext(image_info.original_image_path)[1]
+            result_filename = original_filename.replace(original_extension, "") + "_converted" + original_extension
+            cv2.imwrite(os.path.join(folder, result_filename), image_info.translated_frame)
 
     def select_rect(self, event):
         if len(self.image_data) > self.loaded_image_index:

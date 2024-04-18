@@ -22,7 +22,7 @@
    </property>
    <layout class="QVBoxLayout" name="verticalLayout_4" stretch="1,7">
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0,0">
+     <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0,0,0">
       <item>
        <widget class="QPushButton" name="load_images_button">
         <property name="text">
@@ -48,6 +48,13 @@
        <widget class="QPushButton" name="next_button">
         <property name="text">
          <string>Next</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="save_button">
+        <property name="text">
+         <string>Save Results</string>
         </property>
        </widget>
       </item>

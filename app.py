@@ -96,6 +96,13 @@ class Window(QMainWindow, Ui_MainWindow):
     def show_mask(self):
         self.imageDrawer.set_show(show_mask=True)
 
+    def save_results(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder", options=options)
+        if folder:
+            self.imageDrawer.save_results(folder)
+
     def __init__(self, loop=None, parent=None):
         super().__init__(parent)
         self.loop = loop or asyncio.get_event_loop()
@@ -142,6 +149,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.show_result_button.clicked.connect(self.show_result)
         self.show_clean_button.clicked.connect(self.show_clean)
         self.show_text_mask_button.clicked.connect(self.show_mask)
+        self.save_button.clicked.connect(self.save_results)
 
         self.imageDrawer = ImageDrawer(self)
         self.segmentation = Segmentation()
