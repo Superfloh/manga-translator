@@ -88,11 +88,11 @@ class ImageDrawer:
             height, width, channel = image_info.translated_frame.shape
             bytes_per_line = 3 * width
             if self.show_result:
-                q_img = QImage(image_info.translated_frame.data, width, height, bytes_per_line, QImage.Format_RGB888)
+                q_img = QImage(image_info.translated_frame.data, width, height, bytes_per_line, QImage.Format_BGR888)
             elif self.show_clean:
-                q_img = QImage(image_info.frame_clean.data, width, height, bytes_per_line, QImage.Format_RGB888)
+                q_img = QImage(image_info.frame_clean.data, width, height, bytes_per_line, QImage.Format_BGR888)
             elif self.show_mask:
-                q_img = QImage(image_info.text_mask.data, width, height, bytes_per_line, QImage.Format_RGB888)
+                q_img = QImage(image_info.text_mask.data, width, height, bytes_per_line, QImage.Format_BGR888)
             else:
                 return
 
